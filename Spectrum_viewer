@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Real-time Frequency Analysis</title>
+</head>
+<body>
+<canvas id="frequency-graph"></canvas>
+<script>
+    // get audio stream from microphone
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        // create an AudioContext
+        const audioContext = new AudioContext();
+
+        // create an AudioBufferSourceNode from the stream
+        const source = audioContext.createMediaStreamSource(stream);
+
+        // create an AnalyserNode
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+
+        // connect the nodes
+        source.connect(analyser);
+
+        // create a Uint8Array to store the frequency data
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        // get the canvas element
+        const canvas = document.getElementById('frequency-graph');
+        canvas.width = canvas.width * 2;
+        canvas.height = canvas.height * 2;
+
+        const canvasContext = canvas.getContext('2d');
+
+        // draw the frequency data on the canvas
+        function draw() {
+            requestAnimationFrame(draw);
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // clear the canvas
+            canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+
+            // draw the frequency data
+            for (let i = 0; i < dataArray.length; i++) {
+                const value = dataArray[i];
+                const percent = value / 256;
+                const height = canvas.height * percent;
+                const offset = canvas.height - height - 1;
+                const barWidth = canvas.width / dataArray.length;
+                canvasContext.fillStyle = "#ffc600";
+                canvasContext.fillRect(i * barWidth, offset, barWidth, height);
+            }
+        }
+        draw();
+    });
+</script>
+</body>
+</html>
