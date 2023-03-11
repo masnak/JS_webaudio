@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>FFT and inverted sound</title>
+</head>
+<body>
+<!-- ページの見出し -->
+<h1>Inverted Sound Demo</h1>
+<h1>(Noise canceling)</h1>
+<h3> Please use headphone to avoid howling sound. </h3>
+<!-- canvas要素 -->
+<canvas id="canvas" width="300" height="300"></canvas>
+
+<!-- 現在の音量を表示するための要素 -->
+<h2 id="meter">0</h2>
+
+
+<!-- スクリプトの開始 -->
+<script>
+
+  // 現在の音量を表示するための要素を取得する
+  let meter = document.getElementById('meter');
+
+
+
+  // ユーザーのマイクからストリームを取得する
+  navigator.mediaDevices.getUserMedia({audio: true})
+          .then(function(stream) {
+
+            // オーディオコンテキストを作成する
+            let context = new AudioContext();
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // 入力ストリームを作成する
+            let input = context.createMediaStreamSource(stream);
+
+            // 解析オブジェクトを作成する
+            let analyser = context.createAnalyser();
+
+            // 入力と解析を接続する
+            input.connect(analyser);
+
+            // メーターを更新する関数
+            function updateMeter() {
+
+              // データを格納するための配列を作成する
+              let data = new Uint8Array(analyser.frequencyBinCount);
+
+              // 解析オブジェクトからデータを取得する
+              analyser.getByteFrequencyData(data);
+
+              // データの平均を計算する
+              let sum = 0;
+              for (let i = 0; i < data.length; i++) {
+                sum += data[i];
+              }
+              let average = sum / data.length;
+
+              // メーターを更新する
+              meter.innerHTML = average;
+
+              // 次のフレームの更新を要求する
+              requestAnimationFrame(updateMeter);
+            }
+
+            // 初回の更新を要求する
+            updateMeter();
+
+            // fftを使い、周波数のグラフをcanvasに描画する。
+            function draw() {
+              // canvas要素を取得する
+              let canvas = document.getElementById('canvas');
+              // canvas要素のコンテキストを取得する
+              let context = canvas.getContext('2d');
+              // canvasをクリアする
+              context.clearRect(0, 0, canvas.width, canvas.height);
+
+              // データを格納するための配列を作成する
+              let data = new Uint8Array(analyser.frequencyBinCount);
+
+              // 解析オブジェクトからデータを取得する
+              analyser.getByteFrequencyData(data);
+
+              // データを描画する
+              for (let i = 0; i < data.length; i++) {
+                let value = data[i];
+                let percent = value / 256;
+                let height = canvas.height * percent;
+                let offset = canvas.height - height - 1;
+                let barWidth = canvas.width / analyser.frequencyBinCount;
+                let hue = i / analyser.frequencyBinCount * 360;
+                context.fillStyle = 'hsl(' + hue + ', 100%, 50%)';
+                context.fillRect(i * barWidth, offset, barWidth, height);
+              }
+
+              // 次のフレームの更新を要求する
+              requestAnimationFrame(draw);
+            }
+            draw();
+            // エラーが発生した場合はコンソールに出力する
+
+            // MediaStreamから音声入力のソースを作成
+            const source = audioCtx.createMediaStreamSource(stream);
+
+            // 逆位相の音声を生成するためのGainNodeを作成
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = -1;
+
+            // 出力先を作成
+            const destination = audioCtx.destination;
+
+            // ソースから逆位相の音声を生成するために、ソースからGainNodeを通して出力先に接続
+            source.connect(gainNode);
+            gainNode.connect(destination);
+
+          }).catch(function(err) {
+    console.log(err);
+  });
+
+</script>
+</body>
+</html>
